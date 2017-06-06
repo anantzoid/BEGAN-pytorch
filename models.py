@@ -3,7 +3,7 @@ import torch.nn.functional as F
 
 # TODO try putting encoder+decoder as disc if this doesn't work
 class Decoder(nn.Module):
-    def __init__(self, opt):
+    def __init__(self, opt, disc=False):
         super(Decoder, self).__init__()
         self.num_channel = opt.nc
         self.b_size = opt.b_size
@@ -40,7 +40,9 @@ class Decoder(nn.Module):
         x = self.up3(x)
         x = F.elu(self.l7(x))
         x = F.elu(self.l8(x))
-        x = F.tanh(self.l9(x))
+        x = self.l9(x)
+        if not disc:
+            x = F.tanh(x)
         return x
     
 class Encoder(nn.Module):
@@ -69,22 +71,22 @@ class Encoder(nn.Module):
         self.l0 = nn.Conv2d(3, self.num_channel, 3, 1, 1)
         self.l1 = nn.Conv2d(self.num_channel, self.num_channel, 3, 1, 1)
         self.l2 = nn.Conv2d(self.num_channel, self.num_channel, 3, 1, 1)
-        self.down1 = nn.Conv2d(self.num_channel, 2*self.num_channel, 1, 1, 0)
+        self.down1 = nn.Conv2d(self.num_channel, self.num_channel, 1, 1, 0)
         self.pool1 = nn.AvgPool2d(2, 2)
 
-        self.l3 = nn.Conv2d(2*self.num_channel, 2*self.num_channel, 3, 1, 1)
-        self.l4 = nn.Conv2d(2*self.num_channel, 2*self.num_channel, 3, 1, 1)
-        self.down2 = nn.Conv2d(2*self.num_channel, 3*self.num_channel, 1, 1, 0)
+        self.l3 = nn.Conv2d(self.num_channel, self.num_channel, 3, 1, 1)
+        self.l4 = nn.Conv2d(self.num_channel, self.num_channel, 3, 1, 1)
+        self.down2 = nn.Conv2d(self.num_channel, 2*self.num_channel, 1, 1, 0)
         self.pool2 = nn.AvgPool2d(2, 2)
 
-        self.l5 = nn.Conv2d(3*self.num_channel, 3*self.num_channel, 3, 1, 1)
-        self.l6 = nn.Conv2d(3*self.num_channel, 3*self.num_channel, 3, 1, 1)
-        self.down3 = nn.Conv2d(3*self.num_channel, 4*self.num_channel, 1, 1, 0)
+        self.l5 = nn.Conv2d(2*self.num_channel, 2*self.num_channel, 3, 1, 1)
+        self.l6 = nn.Conv2d(2*self.num_channel, 2*self.num_channel, 3, 1, 1)
+        self.down3 = nn.Conv2d(2*self.num_channel, 3*self.num_channel, 1, 1, 0)
         self.pool3 = nn.AvgPool2d(2, 2)
 
-        self.l7 = nn.Conv2d(4*self.num_channel, 4*self.num_channel, 3, 1, 1)
-        self.l8 = nn.Conv2d(4*self.num_channel, 4*self.num_channel, 3, 1, 1)
-        self.l9 = nn.Linear(8*8*4*self.num_channel, self.h)
+        self.l7 = nn.Conv2d(3*self.num_channel, 3*self.num_channel, 3, 1, 1)
+        self.l8 = nn.Conv2d(3*self.num_channel, 3*self.num_channel, 3, 1, 1)
+        self.l9 = nn.Linear(8*8*3*self.num_channel, self.h)
         
     def forward(self, input):
         #print "========="
@@ -105,7 +107,7 @@ class Encoder(nn.Module):
 
         x = F.elu(self.l7(x))
         x = F.elu(self.l8(x))
-        x = x.view(self.b_size, 8*8*4*self.num_channel)
+        x = x.view(self.b_size, 8*8*3*self.num_channel)
         x = self.l9(x)
         '''
         x = F.elu(self.l0(input))
@@ -130,7 +132,7 @@ class Discriminator(nn.Module):
     def __init__(self, nc):
         super(Discriminator, self).__init__()
         self.enc = Encoder(nc)
-        self.dec = Decoder(nc)
+        self.dec = Decoder(nc, True)
     def forward(self, input):
         return self.dec(self.enc(input))
 

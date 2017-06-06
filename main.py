@@ -37,7 +37,7 @@ parser.add_argument('--h', default=64, type=int)
 parser.add_argument('--nc', default=64, type=int)
 parser.add_argument('--epochs', default=100, type=int)
 parser.add_argument('--lr', default=0.0001, type=int)
-parser.add_argument('--gamma', default=0.4, type=int)
+parser.add_argument('--gamma', default=0.5, type=int)
 parser.add_argument('--lambda_k', default=0.001, type=int)
 parser.add_argument('--scale_size', default=64, type=int)
 parser.add_argument('--model_name', default='test2')
@@ -134,13 +134,13 @@ class BEGAN():
                     data = data.cuda()
                 if self.fixed_x is None:
                     self.fixed_x = data
-                self.z.data.normal_(-1, 1)
-                self.gen.zero_grad()
+                #self.gen.zero_grad()
                 self.disc.zero_grad()
 
-                outputs_d_x = self.disc(data)
+                self.z.data.normal_(-1, 1)
                 gen_z = self.gen(self.z)
                 outputs_d_z = self.disc(gen_z.detach())
+                outputs_d_x = self.disc(data)
                 
                 real_loss_d = torch.mean(torch.abs(outputs_d_x - data))
                 fake_loss_d = torch.mean(torch.abs(outputs_d_z - gen_z))
@@ -150,7 +150,7 @@ class BEGAN():
                 d_opti.step()
             
                 self.gen.zero_grad()
-                self.disc.zero_grad()
+                #self.disc.zero_grad()
                 gen_z = self.gen(self.z)
                 outputs_g_z = self.disc(gen_z)
                 lossG = torch.mean(torch.abs(outputs_g_z - gen_z))
@@ -186,22 +186,22 @@ class BEGAN():
                                                         lossD.data[0], fake_loss_d.data[0], lossG.data[0], k, convg_measure, lr)
                     self.generate(self.global_step)
                 
-                if opt.lr_update_step: 
-                    lr = opt.lr* 0.95 ** (self.global_step//opt.lr_update_step)
-                    # TODO try just updating param groups if this doesn't work
-                    g_opti = torch.optim.Adam(self.gen.parameters(), betas=(0.5, 0.999), lr=lr)
-                    d_opti = torch.optim.Adam(self.disc.parameters(), betas=(0.5, 0.999), lr=lr)
-                    ''' 
-                    if self.global_step % lr_update_step == lr_update_step - 1:
-                        cur_measure = np.mean(measure_history)
-                        if cur_measure > prev_measure * 0.9999:
-                            lr *= 0.5
-                            g_opti = torch.optim.Adam(gen.parameters(), betas=(0.5, 0.999), lr=lr)
-                            d_opti = torch.optim.Adam(disc.parameters(), betas=(0.5, 0.999), lr=lr)
-                        prev_measure = cur_measure
-                    ''' 
+                lr = opt.lr* 0.95 ** (self.global_step//opt.lr_update_step)
+                for p in g_opti.param_groups + d_opti.param_groups:
+                    p['lr'] = lr
+                # g_opti = torch.optim.Adam(self.gen.parameters(), betas=(0.5, 0.999), lr=lr)
+                # d_opti = torch.optim.Adam(self.disc.parameters(), betas=(0.5, 0.999), lr=lr)
+                ''' 
+                if self.global_step % lr_update_step == lr_update_step - 1:
+                    cur_measure = np.mean(measure_history)
+                    if cur_measure > prev_measure * 0.9999:
+                        lr *= 0.5
+                        g_opti = torch.optim.Adam(gen.parameters(), betas=(0.5, 0.999), lr=lr)
+                        d_opti = torch.optim.Adam(disc.parameters(), betas=(0.5, 0.999), lr=lr)
+                    prev_measure = cur_measure
+                ''' 
 
-                if self.global_step%1 == 0:
+                if self.global_step%1000 == 0:
                     self.save_models(self.global_step)
             
                 #convergence_history.append(convg_measure)
