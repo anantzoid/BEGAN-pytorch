@@ -8,6 +8,7 @@ class Decoder(nn.Module):
         self.num_channel = opt.nc
         self.b_size = opt.b_size
         self.h = opt.h
+        self.disc = disc
 
         self.l0 = nn.Linear(self.h, 8*8*self.num_channel)
         self.l1 = nn.Conv2d(self.num_channel, self.num_channel, 3, 1, 1)
@@ -41,7 +42,7 @@ class Decoder(nn.Module):
         x = F.elu(self.l7(x))
         x = F.elu(self.l8(x))
         x = self.l9(x)
-        if not disc:
+        if not self.disc:
             x = F.tanh(x)
         return x
     

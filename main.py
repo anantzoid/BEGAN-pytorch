@@ -70,9 +70,9 @@ class BEGAN():
 
         self.criterion = L1Loss()
 
-
         if opt.cuda:
             self.set_cuda()
+        self.write_config()
 
     def set_cuda(self):
         self.disc.cuda()
@@ -81,6 +81,11 @@ class BEGAN():
         self.fixed_z = self.fixed_z.cuda()
         self.criterion.cuda()
 
+    def write_config(self):
+        f = open(os.path.join(opt.base_path, '%s/params.cfg'%opt.model_name), 'w')
+        print >>f, vars(opt)
+        f.close()
+ 
     def prepare_paths(self):
         self.data_path = os.path.join(opt.base_path, 'data/CelebA')
         self.gen_save_path = os.path.join(opt.base_path, '%s/models'%opt.model_name)
