@@ -47,11 +47,12 @@ parser.add_argument('--load_step', default=100, type=int)
 parser.add_argument('--global_step', default=0, type=int)
 parser.add_argument('--print_step', default=100, type=int)
 parser.add_argument('--num_workers', default=12, type=int)
+parser.add_argument('--l_type', default=2, type=int)
 opt = parser.parse_args()
 #TODO log config
 
 if opt.cuda:
-    torch.cuda.set_device(3)
+    torch.cuda.set_device(opt.gpuid)
 
 
 parser = argparse.ArgumentParser()
@@ -119,6 +120,21 @@ class BEGAN():
         self.gen.load_state_dict(torch.load(os.path.join(self.gen_save_path, 'gen_%d.pth'%step)))     
         self.disc.load_state_dict(torch.load(os.path.join(self.gen_save_path, 'disc_%d.pth'%step)))     
 
+    def compute_disc_loss(self, outputs_d_x, data, outputs_d_z, gen_z):
+        if opt.l_type == 1:
+            real_loss_d = torch.mean(torch.abs(outputs_d_x - data))
+            fake_loss_d = torch.mean(torch.abs(outputs_d_z - gen_z))
+        else:
+            real_loss_d = self.criterion(outputs_d_x, data)
+            fake_loss_d = self.criterion(outputs_d_z , gen_z.detach())
+        return (real_loss_d, fake_loss_d)
+            
+    def compute_gen_loss(self, outputs_g_z, gen_z):
+        if opt.l_type == 1:
+            return torch.mean(torch.abs(outputs_g_z - gen_z))
+        else:
+            return self.criterion(outputs_g_z, gen_z)
+
     def train(self):
         g_opti = torch.optim.Adam(self.gen.parameters(), betas=(0.5, 0.999), lr=opt.lr)
         d_opti = torch.optim.Adam(self.disc.parameters(), betas=(0.5, 0.999), lr=opt.lr)
@@ -146,9 +162,8 @@ class BEGAN():
                 gen_z = self.gen(self.z)
                 outputs_d_z = self.disc(gen_z.detach())
                 outputs_d_x = self.disc(data)
-                
-                real_loss_d = torch.mean(torch.abs(outputs_d_x - data))
-                fake_loss_d = torch.mean(torch.abs(outputs_d_z - gen_z))
+               
+                real_loss_d, fake_loss_d = self.compute_disc_loss(outputs_d_x, data, outputs_d_z, gen_z)
 
                 lossD = real_loss_d - k * fake_loss_d
                 lossD.backward()
@@ -158,7 +173,7 @@ class BEGAN():
                 #self.disc.zero_grad()
                 gen_z = self.gen(self.z)
                 outputs_g_z = self.disc(gen_z)
-                lossG = torch.mean(torch.abs(outputs_g_z - gen_z))
+                lossG = self.compute_gen_loss(outputs_g_z, gen_z)
 
                 #real_loss_d = criterion(outputs_d_x, data)
                 #fake_loss_d = criterion(outputs_d_z, gen_z.detach())
