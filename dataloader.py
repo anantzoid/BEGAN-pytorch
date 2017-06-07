@@ -6,6 +6,7 @@ import torch.utils.data as data
 from PIL import Image
 import os
 import os.path
+from utils.dataset import *
 
 
 IMG_EXTENSIONS = [
@@ -66,9 +67,10 @@ class ImageFolder(data.Dataset):
     
 
 def get_loader(root, split, batch_size, scale_size, num_workers=12, shuffle=True):
+    '''
     dataset_name = os.path.basename(root)
     image_root = os.path.join(root, 'splits', split)
-
+    
     if dataset_name in ['CelebA']:
         dataset = ImageFolder(root=image_root, transform=transforms.Compose([
             transforms.CenterCrop(160),
@@ -83,7 +85,8 @@ def get_loader(root, split, batch_size, scale_size, num_workers=12, shuffle=True
             transforms.ToTensor(),
             #transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
         ]))
-
+    '''
+    dataset = CelebA(root, scale_size, scale_size, 0)
     data_loader = torch.utils.data.DataLoader(
         dataset, batch_size=batch_size, shuffle=shuffle, num_workers=int(num_workers))
     data_loader.shape = [int(num) for num in dataset[0][0].size()]

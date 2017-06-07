@@ -42,6 +42,7 @@ parser.add_argument('--lambda_k', default=0.001, type=int)
 parser.add_argument('--scale_size', default=64, type=int)
 parser.add_argument('--model_name', default='test2')
 parser.add_argument('--base_path', default='/misc/vlgscratch2/LecunGroup/anant/began/')
+parser.add_argument('--data_path', default='data/CelebA')
 parser.add_argument('--load_model', default=False)
 parser.add_argument('--load_step', default=100, type=int)
 parser.add_argument('--global_step', default=0, type=int)
@@ -88,7 +89,7 @@ class BEGAN():
         f.close()
  
     def prepare_paths(self):
-        self.data_path = os.path.join(opt.base_path, 'data/CelebA')
+        self.data_path = os.path.join(opt.base_path, opt.data_path)
         self.gen_save_path = os.path.join(opt.base_path, '%s/models'%opt.model_name)
         self.disc_save_path = os.path.join(opt.base_path, '%s/models'%opt.model_name)
         self.sample_dir = os.path.join(opt.base_path,  '%s/samples'%opt.model_name)
