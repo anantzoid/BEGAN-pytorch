@@ -31,12 +31,14 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--gpuid', default=0, type=int)
 parser.add_argument('--ngpu', default=1, type=int)
 parser.add_argument('--cuda', action='store_true')
-parser.add_argument('--lr_update_step', default=3000, type=int)
 parser.add_argument('--b_size', default=16, type=int)
 parser.add_argument('--h', default=64, type=int)
 parser.add_argument('--nc', default=64, type=int)
 parser.add_argument('--epochs', default=100, type=int)
 parser.add_argument('--lr', default=0.0001, type=int)
+parser.add_argument('--lr_update_step', default=3000, type=int)
+parser.add_argument('--lr_update_type', default=1, type=int)
+parser.add_argument('--lr_lower_boundary', default=2e-6, type=int)
 parser.add_argument('--gamma', default=0.5, type=int)
 parser.add_argument('--lambda_k', default=0.001, type=int)
 parser.add_argument('--scale_size', default=64, type=int)
@@ -110,9 +112,9 @@ class BEGAN():
 
     def generate(self, step):
         sample = self.gen(self.fixed_z)
-        vutils.save_image(sample.data, '%s/%d_gen.png'%(self.sample_dir, step))
+        vutils.save_image(sample.data, '%s/%s_%d_gen.png'%(opt.model_name, self.sample_dir, step))
         recon = self.disc(self.fixed_x)
-        vutils.save_image(recon.data, '%s/%d_disc.png'%(self.sample_dir, step))
+        vutils.save_image(recon.data, '%s/%s_%d_disc.png'%(opt.model_name, self.sample_dir, step))
 
     def save_models(self, step):
         torch.save(self.gen.state_dict(), os.path.join(self.gen_save_path, 'gen_%d.pth'%step)) 
@@ -204,11 +206,19 @@ class BEGAN():
                 convg_measure = real_loss_d.data[0] + np.abs(balance) 
                 #measure_history.append(convg_measure)
                 if self.global_step%opt.print_step == 0:
-                    print "Step: %d, Loss D: %.9f, real_loss: %.9f, fake_loss: %.9f, Loss G: %.9f, k: %f, M: %.9f, lr:%.9f"% (self.global_step,
+                    print "Step: %d, Epochs: %d, Loss D: %.9f, real_loss: %.9f, fake_loss: %.9f, Loss G: %.9f, k: %f, M: %.9f, lr:%.9f"% (self.global_step, i 
                                                         lossD.data[0], real_loss_d.data[0], fake_loss_d.data[0], lossG.data[0], k, convg_measure, lr)
                     self.generate(self.global_step)
-                
-                lr = opt.lr* 0.95 ** (self.global_step//opt.lr_update_step)
+               
+                if opt.lr_update_type == 1:
+                    lr = opt.lr* 0.95 ** (self.global_step//opt.lr_update_step)
+                elif opt.lr_update_type == 2:
+                    if global_step % opt.lr_update_step == opt.lr_update_step -1 :
+                        lr *= 0.5
+                else:
+                    if global_step % opt.lr_update_step == opt.lr_update_step -1 :
+                        lr = min(lr*0.5, opt.lr_lower_boundary)
+
                 for p in g_opti.param_groups + d_opti.param_groups:
                     p['lr'] = lr
                 # g_opti = torch.optim.Adam(self.gen.parameters(), betas=(0.5, 0.999), lr=lr)
