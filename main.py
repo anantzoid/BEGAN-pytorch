@@ -48,7 +48,8 @@ parser.add_argument('--load_step', default=100, type=int)
 parser.add_argument('--global_step', default=0, type=int)
 parser.add_argument('--print_step', default=100, type=int)
 parser.add_argument('--num_workers', default=12, type=int)
-parser.add_argument('--l_type', default=2, type=int)
+parser.add_argument('--l_type', default=1, type=int)
+parser.add_argument('--tanh', default=1, type=int)
 opt = parser.parse_args()
 #TODO log config
 
@@ -203,8 +204,8 @@ class BEGAN():
                 convg_measure = real_loss_d.data[0] + np.abs(balance) 
                 #measure_history.append(convg_measure)
                 if self.global_step%opt.print_step == 0:
-                    print "Step: %d, Loss D: %.9f, fake_loss: %.9f, Loss G: %.9f, k: %f, M: %.9f, lr:%.9f"% (self.global_step,
-                                                        lossD.data[0], fake_loss_d.data[0], lossG.data[0], k, convg_measure, lr)
+                    print "Step: %d, Loss D: %.9f, real_loss: %.9f, fake_loss: %.9f, Loss G: %.9f, k: %f, M: %.9f, lr:%.9f"% (self.global_step,
+                                                        lossD.data[0], real_loss_d.data[0], fake_loss_d.data[0], lossG.data[0], k, convg_measure, lr)
                     self.generate(self.global_step)
                 
                 lr = opt.lr* 0.95 ** (self.global_step//opt.lr_update_step)
