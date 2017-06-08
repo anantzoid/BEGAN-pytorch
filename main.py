@@ -112,9 +112,9 @@ class BEGAN():
 
     def generate(self, step):
         sample = self.gen(self.fixed_z)
-        vutils.save_image(sample.data, '%s/%s_%d_gen.png'%(opt.model_name, self.sample_dir, step))
+        vutils.save_image(sample.data, '%s/%s_%d_gen.png'%(self.sample_dir, opt.model_name, step))
         recon = self.disc(self.fixed_x)
-        vutils.save_image(recon.data, '%s/%s_%d_disc.png'%(opt.model_name, self.sample_dir, step))
+        vutils.save_image(recon.data, '%s/%s_%d_disc.png'%(self.sample_dir, opt.model_name, step))
 
     def save_models(self, step):
         torch.save(self.gen.state_dict(), os.path.join(self.gen_save_path, 'gen_%d.pth'%step)) 
@@ -206,7 +206,7 @@ class BEGAN():
                 convg_measure = real_loss_d.data[0] + np.abs(balance) 
                 #measure_history.append(convg_measure)
                 if self.global_step%opt.print_step == 0:
-                    print "Step: %d, Epochs: %d, Loss D: %.9f, real_loss: %.9f, fake_loss: %.9f, Loss G: %.9f, k: %f, M: %.9f, lr:%.9f"% (self.global_step, i 
+                    print "Step: %d, Epochs: %d, Loss D: %.9f, real_loss: %.9f, fake_loss: %.9f, Loss G: %.9f, k: %f, M: %.9f, lr:%.9f"% (self.global_step, i, 
                                                         lossD.data[0], real_loss_d.data[0], fake_loss_d.data[0], lossG.data[0], k, convg_measure, lr)
                     self.generate(self.global_step)
                
