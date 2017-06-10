@@ -213,7 +213,7 @@ class BEGAN():
                 if opt.lr_update_type == 1:
                     lr = opt.lr* 0.95 ** (self.global_step//opt.lr_update_step)
                 elif opt.lr_update_type == 2:
-                    if global_step % opt.lr_update_step == opt.lr_update_step -1 :
+                    if self.global_step % opt.lr_update_step == opt.lr_update_step -1 :
                         lr *= 0.5
                 else:
                     if global_step % opt.lr_update_step == opt.lr_update_step -1 :
