@@ -30,6 +30,7 @@ import argparse
 parser = argparse.ArgumentParser()
 parser.add_argument('--gpuid', default=0, type=int)
 parser.add_argument('--ngpu', default=1, type=int)
+parser.add_argument('--hpc', action='store_true')
 parser.add_argument('--cuda', action='store_true')
 parser.add_argument('--b_size', default=16, type=int)
 parser.add_argument('--h', default=64, type=int)
@@ -38,9 +39,10 @@ parser.add_argument('--epochs', default=100, type=int)
 parser.add_argument('--lr', default=0.0001, type=float)
 parser.add_argument('--lr_update_step', default=3000, type=int)
 parser.add_argument('--lr_update_type', default=1, type=int)
-parser.add_argument('--lr_lower_boundary', default=2e-6, type=int)
-parser.add_argument('--gamma', default=0.5, type=int)
-parser.add_argument('--lambda_k', default=0.001, type=int)
+parser.add_argument('--lr_lower_boundary', default=2e-6, type=float)
+parser.add_argument('--gamma', default=0.5, type=float)
+parser.add_argument('--lambda_k', default=0.001, type=float)
+parser.add_argument('--k', default=0, type=float)
 parser.add_argument('--scale_size', default=64, type=int)
 parser.add_argument('--model_name', default='test2')
 parser.add_argument('--base_path', default='/misc/vlgscratch2/LecunGroup/anant/began/')
@@ -55,11 +57,13 @@ parser.add_argument('--tanh', default=1, type=int)
 opt = parser.parse_args()
 #TODO log config
 
-if opt.cuda:
+if opt.hpc:
+    opt.cuda = True
+
+if not opt.hpc and opt.cuda:
     torch.cuda.set_device(opt.gpuid)
 
 
-parser = argparse.ArgumentParser()
 class BEGAN():
     def __init__(self):
         self.global_step = opt.global_step
@@ -86,15 +90,15 @@ class BEGAN():
         self.criterion.cuda()
 
     def write_config(self):
-        f = open(os.path.join(opt.base_path, '%s/params.cfg'%opt.model_name), 'w')
+        f = open(os.path.join(opt.base_path, 'experiments/%s/params.cfg'%opt.model_name), 'w')
         print >>f, vars(opt)
         f.close()
  
     def prepare_paths(self):
         self.data_path = os.path.join(opt.base_path, opt.data_path)
-        self.gen_save_path = os.path.join(opt.base_path, '%s/models'%opt.model_name)
-        self.disc_save_path = os.path.join(opt.base_path, '%s/models'%opt.model_name)
-        self.sample_dir = os.path.join(opt.base_path,  '%s/samples'%opt.model_name)
+        self.gen_save_path = os.path.join(opt.base_path, 'experiments/%s/models'%opt.model_name)
+        self.disc_save_path = os.path.join(opt.base_path, 'experiments/%s/models'%opt.model_name)
+        self.sample_dir = os.path.join(opt.base_path,  'experiments/%s/samples'%opt.model_name)
 
         for path in [self.gen_save_path, self.disc_save_path, self.sample_dir]:
             if not os.path.exists(path):
@@ -146,7 +150,6 @@ class BEGAN():
         convergence_history = []
         prev_measure = 1
 
-        k = 0
         lr = opt.lr
 
         for i in range(opt.epochs):
@@ -154,6 +157,7 @@ class BEGAN():
                 data = Variable(data[0])
                 if data.size(0) != opt.b_size:
                     continue
+
 
                 if opt.cuda:
                     data = data.cuda()
@@ -169,7 +173,7 @@ class BEGAN():
                
                 real_loss_d, fake_loss_d = self.compute_disc_loss(outputs_d_x, data, outputs_d_z, gen_z)
 
-                lossD = real_loss_d - k * fake_loss_d
+                lossD = real_loss_d - opt.k * fake_loss_d
                 lossD.backward()
                 d_opti.step()
             
@@ -199,15 +203,15 @@ class BEGAN():
                 g_opti.step()
 
                 balance = (opt.gamma*real_loss_d - fake_loss_d).data[0]
-                k += opt.lambda_k * balance
+                opt.k += opt.lambda_k * balance
                 #k = min(max(0, k), 1)
-                k = max(min(1, k), 0)
+                opt.k = max(min(1, opt.k), 0)
             
                 convg_measure = real_loss_d.data[0] + np.abs(balance) 
                 measure_history.append(convg_measure)
                 if self.global_step%opt.print_step == 0:
                     print "Step: %d, Epochs: %d, Loss D: %.9f, real_loss: %.9f, fake_loss: %.9f, Loss G: %.9f, k: %f, M: %.9f, lr:%.9f"% (self.global_step, i, 
-                                                        lossD.data[0], real_loss_d.data[0], fake_loss_d.data[0], lossG.data[0], k, convg_measure, lr)
+                                                        lossD.data[0], real_loss_d.data[0], fake_loss_d.data[0], lossG.data[0], opt.k, convg_measure, lr)
                     self.generate(self.global_step)
                
                 if opt.lr_update_type == 1:
@@ -225,6 +229,7 @@ class BEGAN():
                             lr = min(lr*0.5, opt.lr_lower_boundary)
                         prev_measure = cur_measure
      
+
                 for p in g_opti.param_groups + d_opti.param_groups:
                     p['lr'] = lr
                 # g_opti = torch.optim.Adam(self.gen.parameters(), betas=(0.5, 0.999), lr=lr)
