@@ -71,7 +71,6 @@ class BEGAN():
         self.fixed_z = Variable(torch.FloatTensor(opt.b_size, opt.h))
         self.fixed_z.data.normal_(-1, 1)    
         self.fixed_x = None
-        measure_history = deque([0]*opt.lr_update_step, opt.lr_update_step)
 
         self.criterion = L1Loss()
 
@@ -142,6 +141,7 @@ class BEGAN():
     def train(self):
         g_opti = torch.optim.Adam(self.gen.parameters(), betas=(0.5, 0.999), lr=opt.lr)
         d_opti = torch.optim.Adam(self.disc.parameters(), betas=(0.5, 0.999), lr=opt.lr)
+        measure_history = deque([0]*opt.lr_update_step, opt.lr_update_step)
 
         convergence_history = []
         prev_measure = 1
@@ -204,7 +204,7 @@ class BEGAN():
                 k = max(min(1, k), 0)
             
                 convg_measure = real_loss_d.data[0] + np.abs(balance) 
-                #measure_history.append(convg_measure)
+                measure_history.append(convg_measure)
                 if self.global_step%opt.print_step == 0:
                     print "Step: %d, Epochs: %d, Loss D: %.9f, real_loss: %.9f, fake_loss: %.9f, Loss G: %.9f, k: %f, M: %.9f, lr:%.9f"% (self.global_step, i, 
                                                         lossD.data[0], real_loss_d.data[0], fake_loss_d.data[0], lossG.data[0], k, convg_measure, lr)
@@ -213,12 +213,18 @@ class BEGAN():
                 if opt.lr_update_type == 1:
                     lr = opt.lr* 0.95 ** (self.global_step//opt.lr_update_step)
                 elif opt.lr_update_type == 2:
-                    if global_step % opt.lr_update_step == opt.lr_update_step -1 :
+                    if self.global_step % opt.lr_update_step == opt.lr_update_step -1 :
                         lr *= 0.5
-                else:
-                    if global_step % opt.lr_update_step == opt.lr_update_step -1 :
+                elif opt.lr_update_type == 3:
+                    if self.global_step % opt.lr_update_step == opt.lr_update_step -1 :
                         lr = min(lr*0.5, opt.lr_lower_boundary)
-
+                else:
+                    if self.global_step % opt.lr_update_step == opt.lr_update_step - 1:
+                        cur_measure = np.mean(measure_history)
+                        if cur_measure > prev_measure * 0.9999:
+                            lr = min(lr*0.5, opt.lr_lower_boundary)
+                        prev_measure = cur_measure
+     
                 for p in g_opti.param_groups + d_opti.param_groups:
                     p['lr'] = lr
                 # g_opti = torch.optim.Adam(self.gen.parameters(), betas=(0.5, 0.999), lr=lr)
