@@ -47,9 +47,7 @@ parser.add_argument('--scale_size', default=64, type=int)
 parser.add_argument('--model_name', default='test2')
 parser.add_argument('--base_path', default='/misc/vlgscratch2/LecunGroup/anant/began/')
 parser.add_argument('--data_path', default='data/CelebA')
-parser.add_argument('--load_model', default=False)
-parser.add_argument('--load_step', default=100, type=int)
-parser.add_argument('--global_step', default=0, type=int)
+parser.add_argument('--load_step', default=0, type=int)
 parser.add_argument('--print_step', default=100, type=int)
 parser.add_argument('--num_workers', default=12, type=int)
 parser.add_argument('--l_type', default=1, type=int)
@@ -66,7 +64,7 @@ if not opt.hpc and opt.cuda:
 
 class BEGAN():
     def __init__(self):
-        self.global_step = opt.global_step
+        self.global_step = opt.load_step
         self.prepare_paths()
         self.data_loader = get_loader(self.data_path, 'train', opt.b_size, opt.scale_size, opt.num_workers)
         self.build_model() 
@@ -80,7 +78,6 @@ class BEGAN():
 
         if opt.cuda:
             self.set_cuda()
-        self.write_config()
 
     def set_cuda(self):
         self.disc.cuda()
@@ -89,8 +86,8 @@ class BEGAN():
         self.fixed_z = self.fixed_z.cuda()
         self.criterion.cuda()
 
-    def write_config(self):
-        f = open(os.path.join(opt.base_path, 'experiments/%s/params.cfg'%opt.model_name), 'w')
+    def write_config(self, step):
+        f = open(os.path.join(opt.base_path, 'experiments/%s/params/%d.cfg'%(opt.model_name, step)), 'w')
         print >>f, vars(opt)
         f.close()
  
@@ -99,8 +96,9 @@ class BEGAN():
         self.gen_save_path = os.path.join(opt.base_path, 'experiments/%s/models'%opt.model_name)
         self.disc_save_path = os.path.join(opt.base_path, 'experiments/%s/models'%opt.model_name)
         self.sample_dir = os.path.join(opt.base_path,  'experiments/%s/samples'%opt.model_name)
+        param_dir =  os.path.join(opt.base_path,  'experiments/%s/params'%opt.model_name)
 
-        for path in [self.gen_save_path, self.disc_save_path, self.sample_dir]:
+        for path in [self.gen_save_path, self.disc_save_path, self.sample_dir, param_dir]:
             if not os.path.exists(path):
                 os.makedirs(path)
     
@@ -110,7 +108,7 @@ class BEGAN():
         #disc.apply(weights_init)
         #gen.apply(weights_init)
 
-        if opt.load_model:
+        if opt.load_step > 0:
             self.load_models(opt.load_step)
 
     def generate(self, step):
@@ -122,6 +120,7 @@ class BEGAN():
     def save_models(self, step):
         torch.save(self.gen.state_dict(), os.path.join(self.gen_save_path, 'gen_%d.pth'%step)) 
         torch.save(self.disc.state_dict(), os.path.join(self.disc_save_path, 'disc_%d.pth'%step)) 
+        self.write_config(step)
 
     def load_models(self, step):
         self.gen.load_state_dict(torch.load(os.path.join(self.gen_save_path, 'gen_%d.pth'%step)))     
@@ -249,6 +248,7 @@ class BEGAN():
             
                 #convergence_history.append(convg_measure)
                 self.global_step += 1
+
 
 obj = BEGAN()
 obj.train()
