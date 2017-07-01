@@ -10,6 +10,7 @@ class Decoder(nn.Module):
         self.h = opt.h
         self.disc = disc
         self.t_act = opt.tanh
+        self.scale_size = opt.scale_size
 
         self.l0 = nn.Linear(self.h, 8*8*self.num_channel)
         self.l1 = nn.Conv2d(self.num_channel, self.num_channel, 3, 1, 1)
@@ -23,7 +24,12 @@ class Decoder(nn.Module):
         self.up3 = nn.UpsamplingNearest2d(scale_factor=2)
         self.l7 = nn.Conv2d(self.num_channel, self.num_channel, 3, 1, 1)
         self.l8 = nn.Conv2d(self.num_channel, self.num_channel, 3, 1, 1)
+        if self.scale_size == 128:
+            self.up4 = nn.UpsamplingNearest2d(scale_factor=2)
+            self.l10 = nn.Conv2d(self.num_channel, self.num_channel, 3, 1, 1)
+            self.l11 = nn.Conv2d(self.num_channel, self.num_channel, 3, 1, 1)
         self.l9 = nn.Conv2d(self.num_channel, 3, 3, 1, 1)
+            
 
         
     def forward(self, input):
@@ -42,9 +48,13 @@ class Decoder(nn.Module):
         x = self.up3(x)
         x = F.elu(self.l7(x))
         x = F.elu(self.l8(x))
+        if self.scale_size == 128:
+            x = self.up4(x)
+            x = F.elu(self.l10(x))
+            x = F.elu(self.l11(x))
         x = self.l9(x)
         #if not self.disc:
-        if self.t_act:
+        if self.scale_size != 128:# and self.t_act:
             x = F.tanh(x)
         return x
     
@@ -54,7 +64,7 @@ class Encoder(nn.Module):
         self.num_channel = opt.nc
         self.h = opt.h
         self.b_size = opt.b_size
-        
+        self.scale_size = opt.scale_size
         '''
         self.l0 = nn.Conv2d(3, num_channel, 3, 1, 1)
         self.l1 = nn.Conv2d(num_channel, 2*num_channel, 3, 1, 1)
@@ -86,10 +96,24 @@ class Encoder(nn.Module):
         self.l6 = nn.Conv2d(2*self.num_channel, 2*self.num_channel, 3, 1, 1)
         self.down3 = nn.Conv2d(2*self.num_channel, 3*self.num_channel, 1, 1, 0)
         self.pool3 = nn.AvgPool2d(2, 2)
+        
+        
+        if self.scale_size == 64:
+            self.l7 = nn.Conv2d(3*self.num_channel, 3*self.num_channel, 3, 1, 1)
+            self.l8 = nn.Conv2d(3*self.num_channel, 3*self.num_channel, 3, 1, 1)
+            self.l9 = nn.Linear(8*8*3*self.num_channel, 64)
+        elif self.scale_size == 128:
+            self.l7 = nn.Conv2d(3*self.num_channel, 3*self.num_channel, 3, 1, 1)
+            self.l8 = nn.Conv2d(3*self.num_channel, 3*self.num_channel, 3, 1, 1)
+            self.down4 = nn.Conv2d(3*self.num_channel, 4*self.num_channel, 1, 1, 0)
+            self.pool4 = nn.AvgPool2d(2, 2)
 
-        self.l7 = nn.Conv2d(3*self.num_channel, 3*self.num_channel, 3, 1, 1)
-        self.l8 = nn.Conv2d(3*self.num_channel, 3*self.num_channel, 3, 1, 1)
-        self.l9 = nn.Linear(8*8*3*self.num_channel, self.h)
+            self.l9 = nn.Conv2d(4*self.num_channel, 4*self.num_channel, 3, 1, 1)
+            self.l11 = nn.Conv2d(4*self.num_channel, 4*self.num_channel, 3, 1, 1)
+            self.l12 = nn.Linear(8*8*4*self.num_channel, 64)
+
+        self.l10 = nn.Linear(64, self.h)
+            
         
     def forward(self, input):
         #print "========="
@@ -108,10 +132,22 @@ class Encoder(nn.Module):
         x = F.elu(self.l6(x))
         x = self.pool3(self.down3(x))
 
-        x = F.elu(self.l7(x))
-        x = F.elu(self.l8(x))
-        x = x.view(self.b_size, 8*8*3*self.num_channel)
-        x = self.l9(x)
+        if self.scale_size == 64:
+            x = F.elu(self.l7(x))
+            x = F.elu(self.l8(x))
+            x = x.view(self.b_size, 8*8*3*self.num_channel)
+            x = self.l9(x)
+        else:
+            x = F.elu(self.l7(x))
+            x = F.elu(self.l8(x))
+            x = self.down4(x)
+            x = self.pool4(x)
+            x = F.elu(self.l9(x))
+            x = F.elu(self.l11(x))
+            x = x.view(self.b_size, 8*8*4*self.num_channel)
+            x = F.elu(self.l12(x))
+
+        x = self.l10(x)
         '''
         x = F.elu(self.l0(input))
         x = F.elu(self.l1(x))

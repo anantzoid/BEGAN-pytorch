@@ -113,9 +113,16 @@ class BEGAN():
 
     def generate(self, step):
         sample = self.gen(self.fixed_z)
+        #print sample.size()
+        #return
+        #sample = sample.data.cpu().mul(0.5).add(0.5).mul(255).byte().transpose(0,2).transpose(0,1).numpy()
+        #from PIL import Image
+        #print type(sample)
+        #im = Image.fromarray(sample.astype('uint8'))
+        #im.save('128.png')
         vutils.save_image(sample.data, '%s/%s_%d_gen.png'%(self.sample_dir, opt.model_name, step))
-        recon = self.disc(self.fixed_x)
-        vutils.save_image(recon.data, '%s/%s_%d_disc.png'%(self.sample_dir, opt.model_name, step))
+        #recon = self.disc(self.fixed_x)
+        #vutils.save_image(recon.data, '%s/%s_%d_disc.png'%(self.sample_dir, opt.model_name, step))
 
     def save_models(self, step):
         torch.save(self.gen.state_dict(), os.path.join(self.gen_save_path, 'gen_%d.pth'%step)) 
@@ -252,6 +259,9 @@ class BEGAN():
 
 obj = BEGAN()
 obj.train()
+'''
+for i in range(1):
+    obj.fixed_z.data.normal_(-1, 1)    
+    obj.generate(i)
 
-
-
+'''
