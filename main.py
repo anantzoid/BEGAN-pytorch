@@ -26,7 +26,7 @@ from dataloader import *
 from models import *
 import argparse
 
-#TODO random seed
+import random
 parser = argparse.ArgumentParser()
 parser.add_argument('--gpuid', default=0, type=int)
 parser.add_argument('--ngpu', default=1, type=int)
@@ -58,8 +58,15 @@ opt = parser.parse_args()
 if opt.hpc:
     opt.cuda = True
 
+
+opt.manualSeed = 5451
+print("Random Seed: ", opt.manualSeed)
+random.seed(opt.manualSeed)
+torch.manual_seed(opt.manualSeed)
+
 if not opt.hpc and opt.cuda:
     torch.cuda.set_device(opt.gpuid)
+    torch.cuda.manual_seed_all(opt.manualSeed)
 
 
 class BEGAN():
@@ -67,11 +74,12 @@ class BEGAN():
         self.global_step = opt.load_step
         self.prepare_paths()
         self.data_loader = get_loader(self.data_path, 'train', opt.b_size, opt.scale_size, opt.num_workers)
+
         self.build_model() 
 
         self.z = Variable(torch.FloatTensor(opt.b_size, opt.h))
         self.fixed_z = Variable(torch.FloatTensor(opt.b_size, opt.h))
-        self.fixed_z.data.normal_(-1, 1)    
+        self.fixed_z.data.uniform_(-1, 1)    
         self.fixed_x = None
 
         self.criterion = L1Loss()
@@ -105,14 +113,17 @@ class BEGAN():
     def build_model(self):
         self.disc = Discriminator(opt)
         self.gen = Decoder(opt)
+        print self.disc
+        print "===================="
+        print self.gen
         #disc.apply(weights_init)
         #gen.apply(weights_init)
 
         if opt.load_step > 0:
             self.load_models(opt.load_step)
 
-    def generate(self, step):
-        sample = self.gen(self.fixed_z)
+    def generate(self, sample, step):
+        #sample = self.gen(fake)
         #print sample.size()
         #return
         #sample = sample.data.cpu().mul(0.5).add(0.5).mul(255).byte().transpose(0,2).transpose(0,1).numpy()
@@ -120,7 +131,9 @@ class BEGAN():
         #print type(sample)
         #im = Image.fromarray(sample.astype('uint8'))
         #im.save('128.png')
-        vutils.save_image(sample.data, '%s/%s_%d_gen.png'%(self.sample_dir, opt.model_name, step))
+        vutils.save_image(sample.data, '%s/%s_%d_gen.png'%(self.sample_dir, opt.model_name, step), normalize=True)
+        f = open('%s/%s_gen.mat'%(self.sample_dir, opt.model_name), 'w')
+        np.save(f, sample.data.cpu().numpy())
         #recon = self.disc(self.fixed_x)
         #vutils.save_image(recon.data, '%s/%s_%d_disc.png'%(self.sample_dir, opt.model_name, step))
 
@@ -160,7 +173,7 @@ class BEGAN():
 
         for i in range(opt.epochs):
             for _, data in enumerate(self.data_loader):
-                data = Variable(data[0])
+                data = Variable(data)
                 if data.size(0) != opt.b_size:
                     continue
 
@@ -172,7 +185,7 @@ class BEGAN():
                 #self.gen.zero_grad()
                 self.disc.zero_grad()
 
-                self.z.data.normal_(-1, 1)
+                self.z.data.uniform_(-1, 1)
                 gen_z = self.gen(self.z)
                 outputs_d_z = self.disc(gen_z.detach())
                 outputs_d_x = self.disc(data)
@@ -218,7 +231,7 @@ class BEGAN():
                 if self.global_step%opt.print_step == 0:
                     print "Step: %d, Epochs: %d, Loss D: %.9f, real_loss: %.9f, fake_loss: %.9f, Loss G: %.9f, k: %f, M: %.9f, lr:%.9f"% (self.global_step, i, 
                                                         lossD.data[0], real_loss_d.data[0], fake_loss_d.data[0], lossG.data[0], opt.k, convg_measure, lr)
-                    self.generate(self.global_step)
+                    self.generate(gen_z, self.global_step)
                
                 if opt.lr_update_type == 1:
                     lr = opt.lr* 0.95 ** (self.global_step//opt.lr_update_step)

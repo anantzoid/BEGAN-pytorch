@@ -36,18 +36,18 @@ class Decoder(nn.Module):
         x = self.l0(input)
         x = x.view(self.b_size, self.num_channel,8, 8)
         
-        x = F.elu(self.l1(x))
-        x = F.elu(self.l2(x))
+        x = F.elu(self.l1(x), True)
+        x = F.elu(self.l2(x), True)
         x = self.up1(x)
 
-        x = F.elu(self.l3(x))
-        x = F.elu(self.l4(x))
+        x = F.elu(self.l3(x), True)
+        x = F.elu(self.l4(x), True)
         x = self.up2(x)
-        x = F.elu(self.l5(x))
-        x = F.elu(self.l6(x))
+        x = F.elu(self.l5(x), True)
+        x = F.elu(self.l6(x), True)
         x = self.up3(x)
-        x = F.elu(self.l7(x))
-        x = F.elu(self.l8(x))
+        x = F.elu(self.l7(x), True)
+        x = F.elu(self.l8(x), True)
         if self.scale_size == 128:
             x = self.up4(x)
             x = F.elu(self.l10(x))
@@ -110,44 +110,44 @@ class Encoder(nn.Module):
 
             self.l9 = nn.Conv2d(4*self.num_channel, 4*self.num_channel, 3, 1, 1)
             self.l11 = nn.Conv2d(4*self.num_channel, 4*self.num_channel, 3, 1, 1)
-            self.l12 = nn.Linear(8*8*4*self.num_channel, 64)
+            self.l12 = nn.Linear(8*8*4*self.num_channel, self.h)
 
-        self.l10 = nn.Linear(64, self.h)
+        #self.l10 = nn.Linear(64, self.h)
             
         
     def forward(self, input):
         #print "========="
         #print input[0,0,:10,:10]
-        x = self.l0(input)
-        x = F.elu(self.l1(x))
-        x = F.elu(self.l2(x))
+        x = F.elu(self.l0(input), True)
+        x = F.elu(self.l1(x), True)
+        x = F.elu(self.l2(x), True)
         x = self.down1(x)
         x = self.pool1(x)
         
-        x = F.elu(self.l3(x))
-        x = F.elu(self.l4(x))
+        x = F.elu(self.l3(x), True)
+        x = F.elu(self.l4(x), True)
         x = self.pool2(self.down2(x))
 
-        x = F.elu(self.l5(x))
-        x = F.elu(self.l6(x))
+        x = F.elu(self.l5(x), True)
+        x = F.elu(self.l6(x), True)
         x = self.pool3(self.down3(x))
 
         if self.scale_size == 64:
-            x = F.elu(self.l7(x))
-            x = F.elu(self.l8(x))
+            x = F.elu(self.l7(x), True)
+            x = F.elu(self.l8(x), True)
             x = x.view(self.b_size, 8*8*3*self.num_channel)
             x = self.l9(x)
         else:
-            x = F.elu(self.l7(x))
-            x = F.elu(self.l8(x))
+            x = F.elu(self.l7(x), True)
+            x = F.elu(self.l8(x), True)
             x = self.down4(x)
             x = self.pool4(x)
-            x = F.elu(self.l9(x))
-            x = F.elu(self.l11(x))
+            x = F.elu(self.l9(x), True)
+            x = F.elu(self.l11(x), True)
             x = x.view(self.b_size, 8*8*4*self.num_channel)
-            x = F.elu(self.l12(x))
+            x = F.elu(self.l12(x), True)
 
-        x = self.l10(x)
+        #x = self.l10(x)
         '''
         x = F.elu(self.l0(input))
         x = F.elu(self.l1(x))

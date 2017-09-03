@@ -7,6 +7,7 @@ from PIL import Image
 import os
 import os.path
 #from utils.dataset import *
+from dataset import *
 
 
 IMG_EXTENSIONS = [
@@ -67,6 +68,7 @@ class ImageFolder(data.Dataset):
     
 
 def get_loader(root, split, batch_size, scale_size, num_workers=12, shuffle=True):
+    '''
     dataset_name = os.path.basename(root)
     image_root = root#os.path.join(root, 'splits', split)
     
@@ -79,6 +81,12 @@ def get_loader(root, split, batch_size, scale_size, num_workers=12, shuffle=True
     data_loader = torch.utils.data.DataLoader(
         dataset, batch_size=batch_size, shuffle=shuffle, num_workers=int(num_workers))
     data_loader.shape = [int(num) for num in dataset[0][0].size()]
+    '''
+    dataset = CelebA('/misc/vlgscratch2/LecunGroup/anant/began/data/64_crop/',64,64,1)
+    data_loader = torch.utils.data.DataLoader(dataset=dataset,
+                                           batch_size=batch_size,
+                                           shuffle=True,
+                                           num_workers=num_workers)
 
     return data_loader
 
