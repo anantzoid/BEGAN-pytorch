@@ -1,93 +1,105 @@
-
 import torch
 from torchvision import transforms
 import torch.utils.data as data
-
 from PIL import Image
 import os
 import os.path
-#from utils.dataset import *
-from dataset import *
+import numpy as np
+from os import listdir
+from os.path import join
+import random
+import math
 
-
-IMG_EXTENSIONS = [
-    '.jpg', '.JPG', '.jpeg', '.JPEG',
-    '.png', '.PNG', '.ppm', '.PPM', '.bmp', '.BMP',
-]
 
 def is_image_file(filename):
-    return any(filename.endswith(extension) for extension in IMG_EXTENSIONS)
-
-def make_dataset(dir):
-    images = []
-    #counter = 0
-    for root, _, fnames in sorted(os.walk(dir)):
-        for fname in sorted(fnames):
-            if is_image_file(fname):# and os.stat(fname).st_size > 0:
-                path = os.path.join(root, fname)
-                item = (path, 0)
-                images.append(item)
-                #counter += 1
-                #if counter > 100:
-                #    return images
-
-    return images
+    return any(filename.endswith(extension) for extension in [".png", ".jpg", ".jpeg"])
 
 def default_loader(path):
     return Image.open(path).convert('RGB')
 
-class ImageFolder(data.Dataset):
+def ToTensor(pic):
+    """Converts a PIL.Image or numpy.ndarray (H x W x C) in the range
+    [0, 255] to a torch.FloatTensor of shape (C x H x W) in the range [0.0, 1.0].
+    """
+    if isinstance(pic, np.ndarray):
+        # handle numpy array
+        img = torch.from_numpy(pic.transpose((2, 0, 1)))
+        # backard compability
+        return img.float().div(255)
+    # handle PIL Image
+    if pic.mode == 'I':
+        img = torch.from_numpy(np.array(pic, np.int32, copy=False))
+    elif pic.mode == 'I;16':
+        img = torch.from_numpy(np.array(pic, np.int16, copy=False))
+    else:
+        img = torch.ByteTensor(torch.ByteStorage.from_buffer(pic.tobytes()))
+    # PIL image mode: 1, L, P, I, F, RGB, YCbCr, RGBA, CMYK
+    if pic.mode == 'YCbCr':
+        nchannel = 3
+    elif pic.mode == 'I;16':
+        nchannel = 1
+    else:
+        nchannel = len(pic.mode)
+    img = img.view(pic.size[1], pic.size[0], nchannel)
+    # put it from HWC to CHW format
+    # yikes, this transpose takes 80% of the loading time/CPU
+    img = img.transpose(0, 1).transpose(0, 2).contiguous()
+    if isinstance(img, torch.ByteTensor):
+        return img.float().div(255)
+    else:
+        return img
 
-    def __init__(self, root, transform=None, target_transform=None,
-                 loader=default_loader):
-        imgs = make_dataset(root)
-        if len(imgs) == 0:
-            raise(RuntimeError("Found 0 images in subfolders of: " + root + "\n"
-                               "Supported image extensions are: " + ",".join(IMG_EXTENSIONS)))
 
-        print("Found {} images in subfolders of: {}".format(len(imgs), root))
-
-        self.root = root
-        self.imgs = imgs
-        self.transform = transform
-        self.target_transform = target_transform
-        self.loader = loader
+# You should build custom dataset as below.
+class CelebA(data.Dataset):
+    def __init__(self,dataPath='data/CelebA/images/',loadSize=64,fineSize=64,flip=1):
+        super(CelebA, self).__init__()
+        # list all images into a list
+        self.image_list = [x for x in listdir(dataPath) if is_image_file(x)]
+        self.dataPath = dataPath
+        self.loadSize = loadSize
+        self.fineSize = fineSize
+        self.flip = flip
 
     def __getitem__(self, index):
-        path, target = self.imgs[index]
-        img = self.loader(path)
-        if self.transform is not None:
-            img = self.transform(img)
-        if self.target_transform is not None:
-            target = self.target_transform(target)
+        # 1. Read one data from file (e.g. using numpy.fromfile, PIL.Image.open).
+        path = os.path.join(self.dataPath,self.image_list[index])
+        img = default_loader(path) 
+        w,h = img.size
 
-        return img, target
+        if(h != self.loadSize):
+            img = img.resize((self.loadSize, self.loadSize), Image.BILINEAR)
+
+        if(self.loadSize != self.fineSize):
+            #x1 = random.randint(0, self.loadSize - self.fineSize)
+            #y1 = random.randint(0, self.loadSize - self.fineSize)
+             
+            x1 = math.floor((self.loadSize - self.fineSize)/2)
+            y1 = math.floor((self.loadSize - self.fineSize)/2)
+            img = img.crop((x1, y1, x1 + self.fineSize, y1 + self.fineSize))
+
+        if(self.flip == 1):
+            if random.random() < 0.5:
+                img = img.transpose(Image.FLIP_LEFT_RIGHT)
+
+        img = ToTensor(img) # 3 x 256 x 256
+
+        img = img.mul_(2).add_(-1)
+        # 3. Return a data pair (e.g. image and label).
+        return img
 
     def __len__(self):
-        return len(self.imgs)
-    
+        # You should change 0 to the total size of your dataset.
+        return len(self.image_list)
+
+
 
 def get_loader(root, split, batch_size, scale_size, num_workers=12, shuffle=True):
-    '''
-    dataset_name = os.path.basename(root)
-    image_root = root#os.path.join(root, 'splits', split)
-    
-    dataset = ImageFolder(root=image_root, transform=transforms.Compose([
-        transforms.Scale(scale_size),
-        transforms.ToTensor(),
-        #transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
-    ]))
-    #dataset = CelebA(root, scale_size, scale_size, 0)
-    data_loader = torch.utils.data.DataLoader(
-        dataset, batch_size=batch_size, shuffle=shuffle, num_workers=int(num_workers))
-    data_loader.shape = [int(num) for num in dataset[0][0].size()]
-    '''
-    dataset = CelebA('/misc/vlgscratch2/LecunGroup/anant/began/data/64_crop/',64,64,1)
+    dataset = CelebA(root,scale_size,scale_size,1)
     data_loader = torch.utils.data.DataLoader(dataset=dataset,
                                            batch_size=batch_size,
                                            shuffle=True,
                                            num_workers=num_workers)
-
     return data_loader
 
 

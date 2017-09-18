@@ -1,7 +1,6 @@
 import torch.nn as nn
 import torch.nn.functional as F
 
-# TODO try putting encoder+decoder as disc if this doesn't work
 class Decoder(nn.Module):
     def __init__(self, opt, disc=False):
         super(Decoder, self).__init__()
@@ -65,22 +64,6 @@ class Encoder(nn.Module):
         self.h = opt.h
         self.b_size = opt.b_size
         self.scale_size = opt.scale_size
-        '''
-        self.l0 = nn.Conv2d(3, num_channel, 3, 1, 1)
-        self.l1 = nn.Conv2d(num_channel, 2*num_channel, 3, 1, 1)
-        self.l2 = nn.Conv2d(2*num_channel, 2*num_channel, 3, 2, 1)        
-
-        self.l3 = nn.Conv2d(2*num_channel, 4*num_channel, 3, 1, 1)
-        self.l4 = nn.Conv2d(4*num_channel, 4*num_channel, 3, 2, 1)        
-
-        self.l5 = nn.Conv2d(4*num_channel, 8*num_channel, 3, 1, 1)
-        self.l6 = nn.Conv2d(8*num_channel, 8*num_channel, 3, 2, 1)        
-        
-        self.l7 = nn.Conv2d(8*num_channel, 16*num_channel, 3, 1, 1)
-        self.l8 = nn.Conv2d(16*num_channel, 16*num_channel, 3, 1, 1)        
-
-        self.l9 = nn.Linear(8*8*16*num_channel, h)
-        '''
         self.l0 = nn.Conv2d(3, self.num_channel, 3, 1, 1)
         self.l1 = nn.Conv2d(self.num_channel, self.num_channel, 3, 1, 1)
         self.l2 = nn.Conv2d(self.num_channel, self.num_channel, 3, 1, 1)
@@ -112,12 +95,8 @@ class Encoder(nn.Module):
             self.l11 = nn.Conv2d(4*self.num_channel, 4*self.num_channel, 3, 1, 1)
             self.l12 = nn.Linear(8*8*4*self.num_channel, self.h)
 
-        #self.l10 = nn.Linear(64, self.h)
-            
         
     def forward(self, input):
-        #print "========="
-        #print input[0,0,:10,:10]
         x = F.elu(self.l0(input), True)
         x = F.elu(self.l1(x), True)
         x = F.elu(self.l2(x), True)
@@ -146,24 +125,6 @@ class Encoder(nn.Module):
             x = F.elu(self.l11(x), True)
             x = x.view(self.b_size, 8*8*4*self.num_channel)
             x = F.elu(self.l12(x), True)
-
-        #x = self.l10(x)
-        '''
-        x = F.elu(self.l0(input))
-        x = F.elu(self.l1(x))
-        x = F.elu(self.l2(x))
-        
-        x = F.elu(self.l3(x))
-        x = F.elu(self.l4(x))
-        x = F.elu(self.l5(x))
-        x = F.elu(self.l6(x))
-        x = F.elu(self.l7(x))
-        x = F.elu(self.l8(x))
-        x = x.view(opt.b_size, 8*8*16*self.num_channel)
-        x = self.l9(x)
-        #print "*********"
-        #print x[0,:10]
-        '''
 
         return x
     
