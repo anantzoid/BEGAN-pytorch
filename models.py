@@ -53,8 +53,8 @@ class Decoder(nn.Module):
             x = F.elu(self.l11(x))
         x = self.l9(x)
         #if not self.disc:
-        if self.scale_size != 128:# and self.t_act:
-            x = F.tanh(x)
+        #if self.scale_size != 128:# and self.t_act:
+        x = F.tanh(x)
         return x
     
 class Encoder(nn.Module):

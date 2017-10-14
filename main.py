@@ -42,10 +42,10 @@ parser.add_argument('--print_step', default=100, type=int)
 parser.add_argument('--num_workers', default=12, type=int)
 parser.add_argument('--l_type', default=1, type=int)
 parser.add_argument('--tanh', default=1, type=int)
+parser.add_argument('--manualSeed', default=5451, type=int)
 opt = parser.parse_args()
 
 
-opt.manualSeed = 5451
 print("Random Seed: ", opt.manualSeed)
 random.seed(opt.manualSeed)
 torch.manual_seed(opt.manualSeed)
@@ -109,7 +109,7 @@ class BEGAN():
         if opt.load_step > 0:
             self.load_models(opt.load_step)
 
-    def generate(self, sample, step):
+    def generate(self, sample, recon, step, nrow=8):
         #sample = self.gen(fake)
         #print sample.size()
         #return
@@ -118,11 +118,12 @@ class BEGAN():
         #print type(sample)
         #im = Image.fromarray(sample.astype('uint8'))
         #im.save('128.png')
-        vutils.save_image(sample.data, '%s/%s_%d_gen.png'%(self.sample_dir, opt.model_name, step), normalize=True)
-        f = open('%s/%s_gen.mat'%(self.sample_dir, opt.model_name), 'w')
-        np.save(f, sample.data.cpu().numpy())
+        vutils.save_image(sample.data, '%s/%s_%s_gen.png'%(self.sample_dir, opt.model_name, str(step)), nrow=nrow, normalize=True)
+        #f = open('%s/%s_gen.mat'%(self.sample_dir, opt.model_name), 'w')
+        #np.save(f, sample.data.cpu().numpy())
         #recon = self.disc(self.fixed_x)
-        #vutils.save_image(recon.data, '%s/%s_%d_disc.png'%(self.sample_dir, opt.model_name, step))
+        if recon is not None:
+            vutils.save_image(recon.data, '%s/%s_%s_disc.png'%(self.sample_dir, opt.model_name, str(step)), nrow=nrow, normalize=True)
 
     def save_models(self, step):
         torch.save(self.gen.state_dict(), os.path.join(self.gen_save_path, 'gen_%d.pth'%step)) 
@@ -162,6 +163,8 @@ class BEGAN():
             for _, data in enumerate(self.data_loader):
                 data = Variable(data)
                 if data.size(0) != opt.b_size:
+                    print data.size(0)
+                    print opt.b_size
                     continue
 
                 if opt.cuda:
@@ -217,7 +220,7 @@ class BEGAN():
                 if self.global_step%opt.print_step == 0:
                     print "Step: %d, Epochs: %d, Loss D: %.9f, real_loss: %.9f, fake_loss: %.9f, Loss G: %.9f, k: %f, M: %.9f, lr:%.9f"% (self.global_step, i, 
                                                         lossD.data[0], real_loss_d.data[0], fake_loss_d.data[0], lossG.data[0], opt.k, convg_measure, lr)
-                    self.generate(gen_z, self.global_step)
+                    self.generate(gen_z, outputs_d_x, self.global_step)
                
                 if opt.lr_update_type == 1:
                     lr = opt.lr* 0.95 ** (self.global_step//opt.lr_update_step)
@@ -255,7 +258,46 @@ class BEGAN():
                 #convergence_history.append(convg_measure)
                 self.global_step += 1
 
-if __name__ == "__main__"
-    obj = BEGAN()
-    obj.train()
+def generative_experiments(obj):
+    z = []
+    for inter in range(10):
+        z0 = np.random.uniform(-1,1,opt.h)
+        z10 = np.random.uniform(-1,1,opt.h)
+        def slerp(val, low, high):
+            omega = np.arccos(np.clip(np.dot(low/np.linalg.norm(low), high/np.linalg.norm(high)), -1, 1))
+            so = np.sin(omega)
+            if so == 0:
+                return (1.0-val) * low + val * high # L'Hopital's rule/LERP
+            return np.sin((1.0-val)*omega) / so * low + np.sin(val*omega) / so * high 
 
+        z.append(z0)
+        for i in range(1, 9):
+            z.append(slerp(i*0.1, z0, z10))
+        z.append(z10.reshape(1, opt.h)) 
+    z = [_.reshape(1, opt.h) for _ in z]
+    z_var = Variable(torch.from_numpy(np.concatenate(z, 0)).float())
+    print z_var.size()
+    if opt.cuda:
+        z_var = z_var.cuda()
+    gen_z = obj.gen(z_var)
+    obj.generate(gen_z, None, 'gen_1014_slerp_%d'%opt.load_step, 10)
+
+    '''
+    # Noise arithmetic 
+    for i in range(5):
+        sum_z = z[i] + z
+        z_var = Variable(torch.from_numpy(np.concatenate(z, 0)).float())
+        print z_var.size()
+        if opt.cuda:
+            z_var = z_var.cuda()
+        gen_z = obj.gen(z_var)
+        obj.generate(gen_z, None, 'gen_1014_slerp_%d'%i)
+    '''
+           
+            
+        
+
+if __name__ == "__main__":
+    obj = BEGAN()
+    #obj.train()
+    generative_experiments(obj)

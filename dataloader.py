@@ -94,7 +94,7 @@ class CelebA(data.Dataset):
 
 
 
-def get_loader(root, split, batch_size, scale_size, num_workers=12, shuffle=True):
+def get_loader(root, batch_size, scale_size, num_workers=12, shuffle=True):
     dataset = CelebA(root,scale_size,scale_size,1)
     data_loader = torch.utils.data.DataLoader(dataset=dataset,
                                            batch_size=batch_size,
