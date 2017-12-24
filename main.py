@@ -43,6 +43,7 @@ parser.add_argument('--num_workers', default=12, type=int)
 parser.add_argument('--l_type', default=1, type=int)
 parser.add_argument('--tanh', default=1, type=int)
 parser.add_argument('--manualSeed', default=5451, type=int)
+parser.add_argument('--train', default=1, type=int)
 opt = parser.parse_args()
 
 
@@ -96,6 +97,7 @@ class BEGAN():
         for path in [self.gen_save_path, self.disc_save_path, self.sample_dir, param_dir]:
             if not os.path.exists(path):
                 os.makedirs(path)
+        print("Generated samples saved in %s"%self.sample_dir)
     
     def build_model(self):
         self.disc = Discriminator(opt)
@@ -299,5 +301,7 @@ def generative_experiments(obj):
 
 if __name__ == "__main__":
     obj = BEGAN()
-    #obj.train()
-    generative_experiments(obj)
+    if opt.train:
+        obj.train()
+    else:
+        generative_experiments(obj)
