@@ -13,7 +13,7 @@ Paper is available in [arxiv](https://arxiv.org/abs/1703.10717).
 ``` 
     python main.py --cuda --base_path . --load_step <saved epoch to load> --train 0
 ``` 
-5. To use any pretrained models, just plug in `--load step trained_models/<model_name>` in the above step
+5. To use any pretrained models, just plug in `--base_path trained_models --model_name 128 --load step 208000` in the above step for model trained on 128x128 images.
 
 ### Results
 
